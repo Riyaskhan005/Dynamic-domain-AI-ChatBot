@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Assistant</title>
+<link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+<div id="configModal" class="modal">
+    <div class="modal-content">
+        <h3>Set AI Configuration</h3>
+        <label>Domain Name:</label>
+        <select id="domain"onchange="toggleCustomDomain()">
+            <option value="">Select a Domain</option>
+            <option value="Healthcare">Healthcare</option>
+            <option value="Finance">Finance</option>
+            <option value="Education">Education</option>
+            <option value="E-commerce">E-commerce</option>
+            <option value="Technology">Technology</option>
+            <option value="Other">Other</option>
+            <input type="text" id="custom-domain" placeholder="Enter custom domain" style="display:none; margin-top:10px;">
+        </select>
+        <label>AI Name:</label>
+        <input type="text" id="aiName" placeholder="e.g., RiyasBot">
+        <button onclick="saveConfig()">Start Chat</button>
+    </div>
+</div>
+
+<div class="chat-container" style="display:none;">
+    <div class="header" id="chat-header">AI Assistant</div>
+    <div class="messages" id="chat-box"></div>
+    <div style="display: flex; align-items: center;">
+        <input type="text" id="user-input" placeholder="Type your query...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+</div>
+<div class="footer">
+    Powered by <a href="https://www.linkedin.com/in/mohamed-riyas-khan-815b2a232" target="_blank">
+        <strong>RSJ RIYAS</strong>
+    </a>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    let isWaiting = false;
+
+    function sendMessage() {
+        if (isWaiting) return;
+
+        const input = $('#user-input');
+        const sendBtn = $('button[onclick="sendMessage()"]');
+        const message = input.val().trim();
+        if (!message) return;
+
+        isWaiting = true;
+        sendBtn.prop('disabled', true);
+        input.prop('disabled', true);
+
+        const chatBox = $('#chat-box');
+        chatBox.append(`<div class="chat-bubble user-bubble">${message}</div>`);
+        input.val('');
+        chatBox.scrollTop(chatBox[0].scrollHeight);
+
+        // Typing indicator
+        const typing = $('<div class="typing-indicator"><span></span><span></span><span></span></div>');
+        chatBox.append(typing);
+        chatBox.scrollTop(chatBox[0].scrollHeight);
+
+        $.ajax({
+            url: '/ask',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ query: message }),
+            success: function(data) {
+                typing.remove();
+                if (data.response) {
+                    const botResponse = data.response.replace(/\*(.*?)\*/g, '<i>$1</i>');
+                    chatBox.append(`<div class="chat-bubble bot-bubble">${botResponse}</div>`);
+                    chatBox.scrollTop(chatBox[0].scrollHeight);
+                }
+            },
+            error: function() {
+                typing.remove();
+                chatBox.append(`<div class="chat-bubble bot-bubble" style="color:red;">Error: Could not reach server.</div>`);
+            },
+            complete: function() {
+                isWaiting = false;
+                sendBtn.prop('disabled', false);
+                input.prop('disabled', false).focus();
+            }
+        });
+    }
+
+    // Enter key handler
+    $('#user-input').keypress(function(e) {
+        if (e.key === 'Enter') {
+            if (!isWaiting) {
+                sendMessage();
+            }
+            e.preventDefault(); // Always prevent default
+        }
+    });
+
+    function saveConfig() {
+    let domain = $('#domain').val().trim();
+    const aiName = $('#aiName').val().trim();
+
+    if (domain === 'Other') {
+        domain = $('#custom-domain').val().trim();
+    }
+
+    if (!domain || !aiName) {
+        alert("Please enter both domain and AI name");
+        return;
+    }
+
+    $.ajax({
+        url: '/set-config',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ domain: domain, ai_name: aiName }),
+        success: function(data) {
+            if (!data.error) {
+                $('#configModal').hide();
+                $('.chat-container').show();
+                $('#chat-header').text(aiName + " - AI Assistant");
+            } else {
+                alert(data.error);
+            }
+        },
+        error: function() {
+            alert('Error: Could not save configuration.');
+        }
+    });
+}
+    function toggleCustomDomain() {
+    const domainValue = $('#domain').val();
+    if (domainValue === 'Other') {
+        $('#custom-domain').show();
+    } else {
+        $('#custom-domain').hide().val('');
+    }
+}
+</script>
+</body>
+</html>
