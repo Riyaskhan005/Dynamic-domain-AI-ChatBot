@@ -53,3 +53,7 @@ http://127.0.0.1:5000/
 
 © 2025 RSJ RIYAS. All Rights Reserved.
 Powered by RSJ RIYAS.
+
+
+
+pip install google-generativeai flask flask-session
