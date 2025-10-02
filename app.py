@@ -1,20 +1,17 @@
 from flask import Flask, render_template, request, jsonify, session
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langchain_community.llms import Ollama
 from flask_session import Session
-
+import google.generativeai as genai
+import os
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
 app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
 
-llm = Ollama(model="llama2")
-output_parser = StrOutputParser()
+genai.configure(api_key="AIzaSyCWMhElsvio4Loo7Ie6URFcFr6Arv1vdeU")
+model = genai.GenerativeModel("gemini-2.0-flash-exp")
 
 @app.route('/')
 def index():
-    # Clear chat and config on new session
     session.clear()
     return render_template('chat.html')
 
@@ -27,7 +24,6 @@ def set_config():
     if not domain or not ai_name:
         return jsonify({"error": "Domain and AI name required"}), 400
 
-    # Store in session
     session['domain'] = domain
     session['ai_name'] = ai_name
     session['chat_history'] = [
@@ -47,16 +43,18 @@ def ask():
 
     session['chat_history'].append({"role": "user", "content": user_query})
 
-    # Create prompt dynamically from history
-    messages = [(msg["role"], msg["content"]) for msg in session['chat_history']]
-    prompt = ChatPromptTemplate.from_messages(messages)
-    chain = prompt | llm | output_parser
+    # Build conversation string
+    conversation = "\n".join([f"{msg['role'].capitalize()}: {msg['content']}" 
+                              for msg in session['chat_history']])
 
-    response = chain.invoke({})
-    session['chat_history'].append({"role": "assistant", "content": response})
+    # Get Gemini response
+    response = model.generate_content(conversation)
+    ai_reply = response.text
+
+    session['chat_history'].append({"role": "assistant", "content": ai_reply})
     session.modified = True
 
-    return jsonify({"response": response})
+    return jsonify({"response": ai_reply})
 
 if __name__ == '__main__':
     app.run(debug=True)
